@@ -1,0 +1,154 @@
+<html>
+  <head>
+      <title>Chat with socket.io and node.js</title>
+      <style>
+          #chat{
+            height: 500px;
+          }
+          #contentWrap{
+            display: none;
+          }
+
+          #chatWrap{
+            float: left;
+            border: 1px solid black;
+          }
+
+          .error{
+              color: red;
+          }
+
+          .msg{
+              color: gray;
+              font-style: italic;
+          }
+      </style>
+  </head>
+  <body>
+
+          <div id="nickWrap">
+              <p>Enter a username:</p>
+              <p id="nickError"></p>
+              <form id="nickForm">
+                  <input type="text" name="nick" id="nick" />
+                  <input type="submit" id="set" value="Set" name="set"/>
+              </form>
+
+
+          </div>
+
+
+          <div id="contentWrap">
+            <div id="chatWrap">
+                <div id="chat"></div>
+
+                <form id="messageForm">
+                    <input id="message" type="text" name="message" size="35"/>
+                    <input id="send" type="submit" name="send" value="Send"/>
+                </form>
+            </div>
+            <div id="users"></div>
+          </div>
+
+          <script src="http://code.jquery.com/jquery-latest.min.js" ></script>
+          <script src="/socket.io/socket.io.js" ></script>
+          <script>
+            'use strict';
+
+            jQuery(document).ready(function($) {
+              console.log("Hello World!!!")
+              var socket = io.connect();
+              var messageForm = $("#messageForm");
+              var message = $("#message");
+              var chat = $("#chat");
+              var nickForm = $("#nickForm");
+              var nickError = $("#nickError");
+              var nick = $("#nick");
+              var users = $("#users");
+              messageForm.submit(function(e){
+                  e.preventDefault();
+                  var msg = message.val();
+                  msg = msg.trim();
+                  if(msg.substr(0, 3).toLowerCase() === '/w ') { //Wisper
+                      msg = msg.substr(3);
+                      msg = msg.trim();
+                      var index = msg.indexOf(" ");
+                      var name;
+                      if(index !== -1) {
+                          name = msg.substring(0, index);
+                          name = name.toLowerCase();
+                          msg = msg.substr(index + 1);
+                          msg = msg.trim();
+                         // chat.append("<span class='msg'><b>"+socket.nick+"->name</b>: " + msg + "</span><br />");
+                      }else{
+                          name = msg.trim();
+                          msg = "";
+                      }
+                      chat.append("<span class='wisper'><b>"+"Me"+"->"+name+"</b>: " + msg + "</span><br />");
+
+
+                  }else{
+                      chat.append("<span class='msg'><b>"+"Me"+"</b>: " + msg + "</span><br />");
+                  }
+
+
+                  socket.emit("send message", message.val(), function(data){
+                      chat.append("<span class='error'><b>Error</b>: " + data + "</span><br />");
+                  });
+
+
+
+                message.val("");
+                return false;
+              });
+
+              nickForm.submit(function (e){
+                console.log("Hello");
+                e.preventDefault();
+                console.log(nick.val());
+               socket.emit("new user", nick.val(), function(data){
+                    if(data){
+                        $("#nickWrap").hide();
+                        $("#contentWrap").show();
+                        socket.nick = nick.val().toLowerCase();
+                    }else{
+                        $("#nickError").html("That username is already taken", "Please try again!");
+                    }
+                });
+
+                return false;
+              });
+
+
+
+              socket.on("new message", function (data){
+                  if(socket.nick !== data.nick)
+                    chat.append("<span class='msg'><b>" + data.nick + "</b>: " + data.msg + "</span><br />");
+              });
+
+
+
+            socket.on("wisper", function(data){
+                chat.append("<span class='wisper'><b>" + data.nick + "</b>: " + data.msg + "</span><br />");
+            });
+
+              socket.on("usernames", function(data){
+                  var html = "";
+                  data.forEach(function(element, index, data){
+                      if(element == socket.nick){
+                          html += "<b>" + element + "</b>" + "<br />";
+                      }else{
+                          html += element + "<br />";
+                      }
+
+
+                  });
+                  users.html(html);
+              });
+
+            });
+
+          </script>
+
+  </body>
+</html>
